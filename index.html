@@ -431,9 +431,26 @@ function applyTheme(t){
 }
 
 /* =========== API =========== */
+const READ_ACTIONS = ['list', 'history', 'fullLog'];
+
 function apiCall(action, payload) {
   payload = payload || {};
   payload.action = action;
+
+  if (READ_ACTIONS.includes(action)) {
+    // GET: αποδεδειγμένα δουλεύει χωρίς προβλήματα CORS/redirect
+    const qs = Object.keys(payload)
+      .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(payload[k]))
+      .join('&');
+    return fetch(APPS_SCRIPT_URL + '?' + qs)
+      .then(r => r.json())
+      .then(res => {
+        if (!res.ok) throw new Error(res.error || 'Άγνωστο σφάλμα');
+        return res;
+      });
+  }
+
+  // POST για add/update/delete (χρειάζονται να στείλουν αντικείμενο δεδομένων)
   return fetch(APPS_SCRIPT_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // αποφυγή CORS preflight
