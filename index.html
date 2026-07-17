@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Ευρετήριο Αποθήκης</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#12232E">
+<style>
+  :root{
+    --bg:#F2EFE9;
+    --panel:#FFFFFF;
+    --ink:#12232E;
+    --ink-soft:#4B5A63;
+    --line:#DCD6C8;
+    --accent:#C97A2B;
+    --accent-ink:#FFFFFF;
+    --steel:#12232E;
+    --steel-2:#1C3644;
+    --ok:#3E7A4C;
+    --warn:#B94A3D;
+    --new-badge:#E9B44C;
+    --radius:10px;
+    --mono: 'IBM Plex Mono', 'Courier New', monospace;
+    --sans: 'IBM Plex Sans', 'Segoe UI', Arial, sans-serif;
+  }
+  [data-theme="dark"]{
+    --bg:#0E1A22;
+    --panel:#16262F;
+    --ink:#EDEAE2;
+    --ink-soft:#9FB0B8;
+    --line:#26383F;
+    --accent:#E0954B;
+    --steel:#0B151C;
+    --steel-2:#132530;
+    --panel-2:#1B2E37;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:var(--sans);
+    background:var(--bg);
+    color:var(--ink);
+    min-height:100vh;
+    transition:background .2s, color .2s;
+  }
+  a{color:inherit;}
+
+  header.top{
+    background:linear-gradient(135deg, var(--steel), var(--steel-2));
+    color:#EDEAE2;
+    padding:16px 18px 20px;
+    position:sticky; top:0; z-index:20;
+    box-shadow:0 2px 10px rgba(0,0,0,.2);
+  }
+  .top-row{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand-mark{
+    width:34px;height:34px;border-radius:8px;
+    background:var(--accent); color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono); font-weight:700; font-size:15px;
+    letter-spacing:-1px;
+    flex-shrink:0;
+  }
+  .brand h1{font-size:16px; margin:0; font-weight:700; letter-spacing:.2px;}
+  .brand small{display:block; font-size:11px; color:#9FB0B8; font-family:var(--mono); margin-top:1px;}
+  .icon-btn{
+    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15);
+    color:#EDEAE2; border-radius:8px; width:36px; height:36px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    font-size:16px;
+  }
+  .icon-btn:active{transform:scale(.94);}
+  .top-actions{display:flex; gap:8px;}
+
+  .search-wrap{margin-top:14px; display:flex; gap:8px;}
+  .search-box{
+    flex:1; display:flex; align-items:center; gap:8px;
+    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15);
+    border-radius:9px; padding:10px 12px;
+  }
+  .search-box input{
+    background:transparent; border:none; outline:none; color:#EDEAE2;
+    font-family:var(--sans); font-size:14px; width:100%;
+  }
+  .search-box input::placeholder{color:#8DA0A9;}
+  select#catFilter{
+    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15);
+    color:#EDEAE2; border-radius:9px; padding:0 10px; font-family:var(--sans); font-size:13px;
+    max-width:120px;
+  }
+
+  main{padding:14px 14px 90px; max-width:900px; margin:0 auto;}
+
+  .stat-row{display:flex; gap:8px; margin:10px 0 16px; overflow-x:auto;}
+  .stat-chip{
+    font-family:var(--mono); font-size:11px; color:var(--ink-soft);
+    background:var(--panel); border:1px solid var(--line); border-radius:20px;
+    padding:5px 12px; white-space:nowrap;
+  }
+  .stat-chip b{color:var(--ink); font-weight:700;}
+
+  .item-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:13px 14px; margin-bottom:9px; cursor:pointer;
+    transition:box-shadow .15s, transform .1s;
+  }
+  .item-card:active{transform:scale(.995);}
+  .item-top{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
+  .item-desc{font-size:14.5px; font-weight:600; line-height:1.35;}
+  .item-cat{
+    font-family:var(--mono); font-size:10px; color:var(--accent);
+    background:color-mix(in srgb, var(--accent) 14%, transparent);
+    border-radius:5px; padding:2px 7px; flex-shrink:0; font-weight:700;
+  }
+  .item-meta{display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:8px; font-family:var(--mono); font-size:12px; color:var(--ink-soft);}
+  .item-meta span b{color:var(--ink);}
+  .badge-new{
+    display:inline-block; background:var(--new-badge); color:#3A2B00; font-size:10px;
+    font-weight:700; padding:2px 7px; border-radius:5px; margin-top:8px; font-family:var(--sans);
+  }
+  .empty-state{text-align:center; padding:60px 20px; color:var(--ink-soft);}
+  .empty-state .big{font-size:38px; margin-bottom:8px;}
+
+  .fab{
+    position:fixed; right:18px; bottom:18px; z-index:30;
+    width:58px; height:58px; border-radius:50%;
+    background:var(--accent); color:#fff; border:none;
+    font-size:28px; box-shadow:0 6px 18px rgba(0,0,0,.3);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .fab:active{transform:scale(.93);}
+
+  .sheet-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:40;
+    display:none; align-items:flex-end; justify-content:center;
+  }
+  .sheet-overlay.open{display:flex;}
+  .sheet{
+    background:var(--panel); width:100%; max-width:560px;
+    border-radius:16px 16px 0 0; padding:18px 18px calc(18px + env(safe-area-inset-bottom));
+    max-height:88vh; overflow-y:auto;
+    animation:slideUp .18s ease-out;
+  }
+  @keyframes slideUp{from{transform:translateY(30px); opacity:0;} to{transform:translateY(0); opacity:1;}}
+  .sheet h2{margin:0 0 4px; font-size:17px;}
+  .sheet .sub{color:var(--ink-soft); font-size:12px; margin-bottom:16px; font-family:var(--mono);}
+  .field{margin-bottom:12px;}
+  .field label{display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:5px; font-weight:600;}
+  .field input, .field select, .field textarea{
+    width:100%; padding:10px 11px; border-radius:8px; border:1px solid var(--line);
+    background:var(--bg); color:var(--ink); font-family:var(--sans); font-size:14px; outline:none;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus{border-color:var(--accent);}
+  .field textarea{resize:vertical; min-height:56px;}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .sheet-actions{display:flex; gap:10px; margin-top:16px;}
+  .btn{
+    flex:1; padding:12px; border-radius:9px; border:none; font-family:var(--sans);
+    font-weight:700; font-size:14px; cursor:pointer;
+  }
+  .btn-primary{background:var(--accent); color:#fff;}
+  .btn-ghost{background:transparent; color:var(--ink-soft); border:1px solid var(--line);}
+  .btn-danger{background:transparent; color:var(--warn); border:1px solid var(--warn);}
+  .btn:active{transform:scale(.97);}
+  .btn[disabled]{opacity:.5;}
+
+  .history-list{border-top:1px solid var(--line); margin-top:6px; padding-top:10px;}
+  .history-row{padding:9px 0; border-bottom:1px dashed var(--line); font-size:12.5px;}
+  .history-row .h-top{display:flex; justify-content:space-between; color:var(--ink-soft); font-family:var(--mono); font-size:11px;}
+  .history-row .h-action{font-weight:700; color:var(--accent);}
+  .history-row .h-detail{margin-top:3px; color:var(--ink);}
+
+  .toast{
+    position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
+    background:var(--steel); color:#EDEAE2; padding:11px 18px; border-radius:24px;
+    font-size:13px; z-index:60; opacity:0; pointer-events:none; transition:opacity .25s, bottom .25s;
+    font-family:var(--sans); box-shadow:0 6px 16px rgba(0,0,0,.3);
+  }
+  .toast.show{opacity:1; bottom:100px;}
+
+  .loading{text-align:center; padding:40px; color:var(--ink-soft); font-family:var(--mono); font-size:13px;}
+  .spinner{
+    width:22px; height:22px; border:3px solid var(--line); border-top-color:var(--accent);
+    border-radius:50%; margin:0 auto 10px; animation:spin .7s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  @media (min-width:700px){
+    .item-meta{font-size:12.5px;}
+  }
+</style>
+</head>
+<body data-theme="light">
+
+<header class="top">
+  <div class="top-row">
+    <div class="brand">
+      <div class="brand-mark">Ε.Α.</div>
+      <div>
+        <h1>Ευρετήριο Αποθήκης</h1>
+        <small id="userLabel">—</small>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="icon-btn" id="historyAllBtn" title="Πλήρες ιστορικό">🕘</button>
+      <button class="icon-btn" id="themeBtn" title="Θέμα">🌙</button>
+    </div>
+  </div>
+  <div class="search-wrap">
+    <div class="search-box">
+      <span>🔎</span>
+      <input id="searchInput" type="text" placeholder="Αναζήτηση: περιγραφή, κωδικός, θέση…">
+    </div>
+    <select id="catFilter"><option value="">Όλα</option></select>
+  </div>
+</header>
+
+<main>
+  <div class="stat-row" id="statRow"></div>
+  <div id="listArea">
+    <div class="loading"><div class="spinner"></div>Φόρτωση υλικών…</div>
+  </div>
+</main>
+
+<button class="fab" id="addBtn" title="Νέο υλικό">+</button>
+
+<!-- Item detail / edit sheet -->
+<div class="sheet-overlay" id="itemOverlay">
+  <div class="sheet">
+    <h2 id="itemFormTitle">Νέο υλικό</h2>
+    <div class="sub" id="itemFormSub"></div>
+    <div class="field">
+      <label>Περιγραφή *</label>
+      <textarea id="f_desc"></textarea>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Κατηγορία</label>
+        <input id="f_cat" list="catList" placeholder="π.χ. Α, ΣΩΛΗΝΩΣΕΙΣ...">
+        <datalist id="catList"></datalist>
+      </div>
+      <div class="field">
+        <label>Θέση</label>
+        <input id="f_pos" placeholder="π.χ. 108A7">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Παλιός Κωδικός</label>
+        <input id="f_old" placeholder="π.χ. 537006140">
+      </div>
+      <div class="field">
+        <label>Νέος Κωδικός</label>
+        <input id="f_new" placeholder="π.χ. 5000016865">
+      </div>
+    </div>
+    <div class="field">
+      <label>Θέση (νέα / εναλλακτική)</label>
+      <input id="f_pos2">
+    </div>
+    <div class="field">
+      <label>Σημειώσεις</label>
+      <textarea id="f_notes"></textarea>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="cancelBtn">Άκυρο</button>
+      <button class="btn btn-primary" id="saveBtn">Αποθήκευση</button>
+    </div>
+    <div id="itemHistoryBlock" style="display:none;">
+      <div class="history-list" id="itemHistoryList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Full activity log sheet -->
+<div class="sheet-overlay" id="logOverlay">
+  <div class="sheet">
+    <h2>Πλήρες ιστορικό</h2>
+    <div class="sub">Τελευταίες 300 ενέργειες όλων των χρηστών</div>
+    <div class="history-list" id="fullLogList"></div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="closeLogBtn">Κλείσιμο</button>
+    </div>
+  </div>
+</div>
+
+<!-- Name prompt -->
+<div class="sheet-overlay" id="nameOverlay">
+  <div class="sheet">
+    <h2>Καλωσόρισες 👋</h2>
+    <div class="sub">Πες μας το όνομά σου — θα καταγράφεται στις αλλαγές που κάνεις.</div>
+    <div class="field">
+      <label>Όνομα</label>
+      <input id="f_name" placeholder="π.χ. Ευάγγελος Μαρτίνος">
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-primary" id="saveNameBtn" style="flex:1;">Συνέχεια</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========== ΡΥΘΜΙΣΕΙΣ =========== */
+const APPS_SCRIPT_URL = 'PASTE_YOUR_DEPLOYMENT_URL_HERE'; // <-- βάλε εδώ το exec URL του Apps Script
+
+/* =========== STATE =========== */
+let ITEMS = [];
+let CURRENT_EDIT_ID = null;
+let USER_NAME = localStorage.getItem('ea_user') || '';
+
+/* =========== INIT =========== */
+document.addEventListener('DOMContentLoaded', () => {
+  applyTheme(localStorage.getItem('ea_theme') || 'light');
+  if (!USER_NAME) {
+    document.getElementById('nameOverlay').classList.add('open');
+  } else {
+    document.getElementById('userLabel').textContent = USER_NAME;
+  }
+  loadItems();
+  bindEvents();
+});
+
+function bindEvents(){
+  document.getElementById('themeBtn').onclick = () => {
+    const cur = document.body.getAttribute('data-theme');
+    applyTheme(cur === 'dark' ? 'light' : 'dark');
+  };
+  document.getElementById('saveNameBtn').onclick = () => {
+    const v = document.getElementById('f_name').value.trim();
+    if (!v) return;
+    USER_NAME = v;
+    localStorage.setItem('ea_user', v);
+    document.getElementById('userLabel').textContent = v;
+    document.getElementById('nameOverlay').classList.remove('open');
+  };
+  document.getElementById('searchInput').addEventListener('input', renderList);
+  document.getElementById('catFilter').addEventListener('change', renderList);
+  document.getElementById('addBtn').onclick = () => openItemForm(null);
+  document.getElementById('cancelBtn').onclick = () => closeItemForm();
+  document.getElementById('saveBtn').onclick = saveItem;
+  document.getElementById('historyAllBtn').onclick = openFullLog;
+  document.getElementById('closeLogBtn').onclick = () => document.getElementById('logOverlay').classList.remove('open');
+  document.getElementById('itemOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'itemOverlay') closeItemForm();
+  });
+  document.getElementById('logOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'logOverlay') document.getElementById('logOverlay').classList.remove('open');
+  });
+}
+
+function applyTheme(t){
+  document.body.setAttribute('data-theme', t);
+  document.getElementById('themeBtn').textContent = t === 'dark' ? '☀️' : '🌙';
+  localStorage.setItem('ea_theme', t);
+}
+
+/* =========== API =========== */
+function apiCall(action, payload) {
+  payload = payload || {};
+  payload.action = action;
+  return fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // αποφυγή CORS preflight
+    body: JSON.stringify(payload)
+  }).then(r => r.json()).then(res => {
+    if (!res.ok) throw new Error(res.error || 'Άγνωστο σφάλμα');
+    return res;
+  });
+}
+
+function loadItems(){
+  apiCall('list').then(res => {
+    ITEMS = res.items || [];
+    populateCategories();
+    renderStats();
+    renderList();
+  }).catch(err => {
+    document.getElementById('listArea').innerHTML =
+      '<div class="empty-state"><div class="big">⚠️</div>Σφάλμα φόρτωσης: ' + escapeHtml(err.message) +
+      '<br><small>Έλεγξε ότι έχει μπει το σωστό APPS_SCRIPT_URL στο index.html</small></div>';
+  });
+}
+
+function populateCategories(){
+  const cats = [...new Set(ITEMS.map(i => i.Κατηγορία).filter(Boolean))].sort();
+  const sel = document.getElementById('catFilter');
+  sel.innerHTML = '<option value="">Όλα</option>' + cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  const dl = document.getElementById('catList');
+  dl.innerHTML = cats.map(c => `<option value="${escapeHtml(c)}">`).join('');
+}
+
+function renderStats(){
+  const total = ITEMS.length;
+  const cats = new Set(ITEMS.map(i => i.Κατηγορία).filter(Boolean)).size;
+  const newCount = ITEMS.filter(i => (i.Σημειώσεις || '').includes('ΝΕΟ')).length;
+  document.getElementById('statRow').innerHTML = `
+    <div class="stat-chip"><b>${total}</b> υλικά</div>
+    <div class="stat-chip"><b>${cats}</b> κατηγορίες</div>
+    ${newCount ? `<div class="stat-chip"><b>${newCount}</b> προς έλεγχο</div>` : ''}
+  `;
+}
+
+/* =========== LIST RENDER =========== */
+function renderList(){
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const cat = document.getElementById('catFilter').value;
+  let filtered = ITEMS;
+  if (cat) filtered = filtered.filter(i => i.Κατηγορία === cat);
+  if (q) {
+    filtered = filtered.filter(i => {
+      const hay = [i.Περιγραφή, i.ΠαλιόςΚωδικός, i.ΝέοςΚωδικός, i.Θέση, i.Θέση2, i.Κατηγορία, i.Σημειώσεις]
+        .join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+  }
+  const area = document.getElementById('listArea');
+  if (filtered.length === 0) {
+    area.innerHTML = '<div class="empty-state"><div class="big">📦</div>Δεν βρέθηκαν υλικά.</div>';
+    return;
+  }
+  filtered.sort((a,b) => (a.Περιγραφή||'').localeCompare(b.Περιγραφή||'', 'el'));
+  area.innerHTML = filtered.slice(0, 400).map(itemCardHtml).join('');
+  area.querySelectorAll('.item-card').forEach(card => {
+    card.onclick = () => openItemForm(card.dataset.id);
+  });
+  if (filtered.length > 400) {
+    area.innerHTML += `<div class="empty-state">Εμφανίζονται τα πρώτα 400 από ${filtered.length} αποτελέσματα — περιόρισε την αναζήτηση.</div>`;
+  }
+}
+
+function itemCardHtml(i){
+  const isNew = (i.Σημειώσεις || '').includes('ΝΕΟ');
+  const codes = [i.ΠαλιόςΚωδικός, i.ΝέοςΚωδικός].filter(Boolean);
+  return `
+    <div class="item-card" data-id="${i.ID}">
+      <div class="item-top">
+        <div class="item-desc">${escapeHtml(i.Περιγραφή || '')}</div>
+        ${i.Κατηγορία ? `<div class="item-cat">${escapeHtml(i.Κατηγορία)}</div>` : ''}
+      </div>
+      <div class="item-meta">
+        ${codes.map(c => `<span>κωδ. <b>${escapeHtml(c)}</b></span>`).join('')}
+        ${i.Θέση ? `<span>θέση <b>${escapeHtml(i.Θέση)}</b></span>` : ''}
+      </div>
+      ${isNew ? '<div class="badge-new">ΠΡΟΣ ΕΛΕΓΧΟ</div>' : ''}
+    </div>
+  `;
+}
+
+/* =========== ITEM FORM (add / edit) =========== */
+function openItemForm(id){
+  CURRENT_EDIT_ID = id;
+  const overlay = document.getElementById('itemOverlay');
+  const title = document.getElementById('itemFormTitle');
+  const sub = document.getElementById('itemFormSub');
+  const histBlock = document.getElementById('itemHistoryBlock');
+
+  if (id) {
+    const item = ITEMS.find(i => String(i.ID) === String(id));
+    if (!item) return;
+    title.textContent = 'Επεξεργασία υλικού';
+    sub.textContent = 'ID ' + item.ID + (item.Πηγή ? ' · πηγή: ' + item.Πηγή : '');
+    document.getElementById('f_desc').value = item.Περιγραφή || '';
+    document.getElementById('f_cat').value = item.Κατηγορία || '';
+    document.getElementById('f_pos').value = item.Θέση || '';
+    document.getElementById('f_old').value = item.ΠαλιόςΚωδικός || '';
+    document.getElementById('f_new').value = item.ΝέοςΚωδικός || '';
+    document.getElementById('f_pos2').value = item.Θέση2 || '';
+    document.getElementById('f_notes').value = item.Σημειώσεις || '';
+    histBlock.style.display = 'block';
+    document.getElementById('itemHistoryList').innerHTML = '<div class="loading">Φόρτωση ιστορικού…</div>';
+    apiCall('history', { id }).then(res => {
+      renderHistory(document.getElementById('itemHistoryList'), res.history || []);
+    }).catch(() => {
+      document.getElementById('itemHistoryList').innerHTML = '';
+    });
+  } else {
+    title.textContent = 'Νέο υλικό';
+    sub.textContent = 'Απαιτείται περιγραφή και τουλάχιστον ένας κωδικός';
+    ['f_desc','f_cat','f_pos','f_old','f_new','f_pos2','f_notes'].forEach(id2 => document.getElementById(id2).value = '');
+    histBlock.style.display = 'none';
+  }
+  overlay.classList.add('open');
+}
+
+function closeItemForm(){
+  document.getElementById('itemOverlay').classList.remove('open');
+  CURRENT_EDIT_ID = null;
+}
+
+function saveItem(){
+  const desc = document.getElementById('f_desc').value.trim();
+  const oldC = document.getElementById('f_old').value.trim();
+  const newC = document.getElementById('f_new').value.trim();
+  if (!desc) { showToast('Η περιγραφή είναι υποχρεωτική'); return; }
+  if (!oldC && !newC) { showToast('Χρειάζεται τουλάχιστον ένας κωδικός'); return; }
+  if (!USER_NAME) { document.getElementById('nameOverlay').classList.add('open'); return; }
+
+  const payload = {
+    Περιγραφή: desc,
+    Κατηγορία: document.getElementById('f_cat').value.trim(),
+    Θέση: document.getElementById('f_pos').value.trim(),
+    ΠαλιόςΚωδικός: oldC,
+    ΝέοςΚωδικός: newC,
+    Θέση2: document.getElementById('f_pos2').value.trim(),
+    Σημειώσεις: document.getElementById('f_notes').value.trim(),
+    user: USER_NAME
+  };
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.textContent = 'Αποθήκευση…';
+
+  const action = CURRENT_EDIT_ID ? 'update' : 'add';
+  if (CURRENT_EDIT_ID) payload.ID = CURRENT_EDIT_ID;
+
+  apiCall(action, payload).then(() => {
+    showToast(CURRENT_EDIT_ID ? 'Ενημερώθηκε ✓' : 'Προστέθηκε ✓');
+    closeItemForm();
+    loadItems();
+  }).catch(err => {
+    showToast('Σφάλμα: ' + err.message);
+  }).finally(() => {
+    btn.disabled = false; btn.textContent = 'Αποθήκευση';
+  });
+}
+
+/* =========== HISTORY =========== */
+function renderHistory(container, rows){
+  if (!rows.length) {
+    container.innerHTML = '<div style="color:var(--ink-soft); font-size:12.5px; padding:6px 0;">Καμία καταγεγραμμένη αλλαγή ακόμα.</div>';
+    return;
+  }
+  container.innerHTML = rows.map(r => `
+    <div class="history-row">
+      <div class="h-top"><span>${escapeHtml(r.Χρήστης || '')}</span><span>${formatDate(r.Timestamp)}</span></div>
+      <div><span class="h-action">${escapeHtml(r.Ενέργεια || '')}</span></div>
+      <div class="h-detail">${escapeHtml(r.Λεπτομέρειες || '')}</div>
+    </div>
+  `).join('');
+}
+
+function openFullLog(){
+  const overlay = document.getElementById('logOverlay');
+  overlay.classList.add('open');
+  document.getElementById('fullLogList').innerHTML = '<div class="loading"><div class="spinner"></div>Φόρτωση…</div>';
+  apiCall('fullLog').then(res => {
+    renderHistory(document.getElementById('fullLogList'), res.history || []);
+  }).catch(err => {
+    document.getElementById('fullLogList').innerHTML = 'Σφάλμα: ' + escapeHtml(err.message);
+  });
+}
+
+/* =========== HELPERS =========== */
+function escapeHtml(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function formatDate(v){
+  if (!v) return '';
+  const d = new Date(v);
+  if (isNaN(d)) return String(v);
+  return d.toLocaleDateString('el-GR') + ' ' + d.toLocaleTimeString('el-GR', {hour:'2-digit', minute:'2-digit'});
+}
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+/* =========== PWA / Service worker =========== */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
