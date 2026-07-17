@@ -90,6 +90,14 @@
     color:#EDEAE2; border-radius:9px; padding:0 10px; font-family:var(--sans); font-size:13px;
     max-width:120px;
   }
+  /* Η αναδυόμενη λίστα επιλογών αποδίδεται από το λειτουργικό σύστημα, όχι από εμάς,
+     οπότε πρέπει να ορίσουμε ρητά σκούρο κείμενο σε ανοιχτό φόντο για τα options,
+     αλλιώς κληρονομούν το ανοιχτόχρωμο κείμενο του select και γίνονται αόρατα. */
+  select#catFilter option{
+    color:#12232E;
+    background:#FFFFFF;
+    font-size:14px;
+  }
 
   main{padding:14px 14px 90px; max-width:900px; margin:0 auto;}
 
@@ -234,6 +242,7 @@
       </div>
     </div>
     <div class="top-actions">
+      <button class="icon-btn" id="exportBtn" title="Εξαγωγή">📤</button>
       <button class="icon-btn" id="historyAllBtn" title="Πλήρες ιστορικό">🕘</button>
       <button class="icon-btn" id="themeBtn" title="Θέμα">🌙</button>
     </div>
@@ -331,14 +340,33 @@
   </div>
 </div>
 
+<!-- Export sheet -->
+<div class="sheet-overlay" id="exportOverlay">
+  <div class="sheet">
+    <h2>Εξαγωγή λίστας</h2>
+    <div class="sub" id="exportSub">Εξάγονται τα υλικά που φαίνονται τώρα (μετά από αναζήτηση/φίλτρο)</div>
+    <div class="sheet-actions">
+      <button class="btn btn-primary" id="exportExcelBtn">📊 Excel (.xlsx)</button>
+      <button class="btn btn-primary" id="exportPdfBtn">📄 PDF</button>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="closeExportBtn">Κλείσιμο</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script>
 /* =========== ΡΥΘΜΙΣΕΙΣ =========== */
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxL5jXnWPbrEAr2mA1OS0BTtnSpiAfjzRwbOLIS-pzGC__QNlZvFxr1A31FJIkloaZy9Q/exec';
 
 /* =========== STATE =========== */
 let ITEMS = [];
+let LAST_FILTERED = [];
 let CURRENT_EDIT_ID = null;
 let USER_NAME = localStorage.getItem('ea_user') || '';
 
@@ -376,6 +404,17 @@ function bindEvents(){
   document.getElementById('cancelBtn').onclick = () => closeItemForm();
   document.getElementById('saveBtn').onclick = saveItem;
   document.getElementById('historyAllBtn').onclick = openFullLog;
+  document.getElementById('exportBtn').onclick = () => {
+    document.getElementById('exportSub').textContent =
+      `Εξάγονται ${LAST_FILTERED.length} υλικά (ό,τι φαίνεται τώρα στη λίστα)`;
+    document.getElementById('exportOverlay').classList.add('open');
+  };
+  document.getElementById('closeExportBtn').onclick = () => document.getElementById('exportOverlay').classList.remove('open');
+  document.getElementById('exportExcelBtn').onclick = exportExcel;
+  document.getElementById('exportPdfBtn').onclick = exportPdf;
+  document.getElementById('exportOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'exportOverlay') document.getElementById('exportOverlay').classList.remove('open');
+  });
   document.getElementById('closeLogBtn').onclick = () => document.getElementById('logOverlay').classList.remove('open');
   document.getElementById('itemOverlay').addEventListener('click', (e) => {
     if (e.target.id === 'itemOverlay') closeItemForm();
@@ -452,6 +491,7 @@ function renderList(){
     });
   }
   const area = document.getElementById('listArea');
+  LAST_FILTERED = filtered;
   if (filtered.length === 0) {
     area.innerHTML = '<div class="empty-state"><div class="big">📦</div>Δεν βρέθηκαν υλικά.</div>';
     return;
@@ -543,11 +583,36 @@ function saveItem(){
     Σημειώσεις: document.getElementById('f_notes').value.trim(),
     user: USER_NAME
   };
-  const btn = document.getElementById('saveBtn');
-  btn.disabled = true; btn.textContent = 'Αποθήκευση…';
 
   const action = CURRENT_EDIT_ID ? 'update' : 'add';
   if (CURRENT_EDIT_ID) payload.ID = CURRENT_EDIT_ID;
+
+  // Σε επεξεργασία υπάρχοντος υλικού: δείξε τι άλλαξε και ζήτησε επιβεβαίωση
+  if (CURRENT_EDIT_ID) {
+    const original = ITEMS.find(i => String(i.ID) === String(CURRENT_EDIT_ID));
+    const fieldLabels = {
+      Περιγραφή:'Περιγραφή', Κατηγορία:'Κατηγορία', Θέση:'Θέση', ΠαλιόςΚωδικός:'Παλιός Κωδικός',
+      ΝέοςΚωδικός:'Νέος Κωδικός', Θέση2:'Θέση (νέα)', Σημειώσεις:'Σημειώσεις'
+    };
+    const diffs = [];
+    Object.keys(fieldLabels).forEach(k => {
+      const oldVal = String((original && original[k]) || '').trim();
+      const newVal = String(payload[k] || '').trim();
+      if (oldVal !== newVal) {
+        diffs.push(`• ${fieldLabels[k]}: "${oldVal || '—'}" → "${newVal || '—'}"`);
+      }
+    });
+    if (diffs.length === 0) {
+      showToast('Δεν έγινε καμία αλλαγή');
+      closeItemForm();
+      return;
+    }
+    const ok = confirm('Άλλαξες:\n\n' + diffs.join('\n') + '\n\nΕίσαι σίγουρος ότι θες να αποθηκευτεί;');
+    if (!ok) return;
+  }
+
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.textContent = 'Αποθήκευση…';
 
   apiCall(action, payload).then(() => {
     showToast(CURRENT_EDIT_ID ? 'Ενημερώθηκε ✓' : 'Προστέθηκε ✓');
@@ -584,6 +649,48 @@ function openFullLog(){
   }).catch(err => {
     document.getElementById('fullLogList').innerHTML = 'Σφάλμα: ' + escapeHtml(err.message);
   });
+}
+
+/* =========== ΕΞΑΓΩΓΗ =========== */
+const EXPORT_COLS = ['ID','Κατηγορία','Περιγραφή','ΠαλιόςΚωδικός','ΝέοςΚωδικός','Θέση','Θέση2','Σημειώσεις'];
+const EXPORT_LABELS = ['ID','Κατηγορία','Περιγραφή','Παλιός Κωδικός','Νέος Κωδικός','Θέση','Θέση (νέα)','Σημειώσεις'];
+
+function exportExcel(){
+  if (!LAST_FILTERED.length) { showToast('Δεν υπάρχουν υλικά για εξαγωγή'); return; }
+  const rows = LAST_FILTERED.map(i => EXPORT_COLS.map(c => i[c] ?? ''));
+  const ws = XLSX.utils.aoa_to_sheet([EXPORT_LABELS, ...rows]);
+  ws['!cols'] = [{wch:6},{wch:14},{wch:42},{wch:16},{wch:14},{wch:12},{wch:14},{wch:24}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Ευρετήριο');
+  XLSX.writeFile(wb, `Ευρετήριο_Αποθήκης_${dateStamp()}.xlsx`);
+  document.getElementById('exportOverlay').classList.remove('open');
+  showToast('Έγινε λήψη Excel ✓');
+}
+
+function exportPdf(){
+  if (!LAST_FILTERED.length) { showToast('Δεν υπάρχουν υλικά για εξαγωγή'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape' });
+  doc.setFontSize(13);
+  doc.text('Ευρετήριο Αποθήκης - Motor Oil', 14, 14);
+  doc.setFontSize(9);
+  doc.text(new Date().toLocaleString('el-GR'), 14, 20);
+  doc.autoTable({
+    startY: 26,
+    head: [EXPORT_LABELS],
+    body: LAST_FILTERED.map(i => EXPORT_COLS.map(c => String(i[c] ?? ''))),
+    styles: { fontSize: 7.5, cellPadding: 2 },
+    headStyles: { fillColor: [18, 35, 46] },
+    margin: { left: 10, right: 10 }
+  });
+  doc.save(`Ευρετήριο_Αποθήκης_${dateStamp()}.pdf`);
+  document.getElementById('exportOverlay').classList.remove('open');
+  showToast('Έγινε λήψη PDF ✓');
+}
+
+function dateStamp(){
+  const d = new Date();
+  return d.toISOString().slice(0,10);
 }
 
 /* =========== HELPERS =========== */
