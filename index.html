@@ -352,10 +352,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   loadItems();
   bindEvents();
-  // Κρύψε την οθόνη εκκίνησης μόλις φορτώσουν τα δεδομένα (ή το αργότερο μετά από 1.6s)
+  // Η οθόνη εκκίνησης μένει σταθερά 4.6s ώστε να προλαβαίνει να φανεί καλά η φωτογραφία
   const hideSplash = () => document.getElementById('splash').classList.add('hide');
-  setTimeout(hideSplash, 1600);
-  window.addEventListener('ea:itemsLoaded', hideSplash, { once: true });
+  setTimeout(hideSplash, 4600);
 });
 
 function bindEvents(){
@@ -431,7 +430,7 @@ function populateCategories(){
 function renderStats(){
   const total = ITEMS.length;
   const cats = new Set(ITEMS.map(i => i.Κατηγορία).filter(Boolean)).size;
-  const newCount = ITEMS.filter(i => (i.Σημειώσεις || '').includes('ΝΕΟ')).length;
+  const newCount = ITEMS.filter(i => String(i.Σημειώσεις || '').includes('ΝΕΟ')).length;
   document.getElementById('statRow').innerHTML = `
     <div class="stat-chip"><b>${total}</b> υλικά</div>
     <div class="stat-chip"><b>${cats}</b> κατηγορίες</div>
@@ -468,7 +467,7 @@ function renderList(){
 }
 
 function itemCardHtml(i){
-  const isNew = (i.Σημειώσεις || '').includes('ΝΕΟ');
+  const isNew = String(i.Σημειώσεις || '').includes('ΝΕΟ');
   const codes = [i.ΠαλιόςΚωδικός, i.ΝέοςΚωδικός].filter(Boolean);
   return `
     <div class="item-card" data-id="${i.ID}">
