@@ -105,9 +105,38 @@
   .stat-chip{
     font-family:var(--mono); font-size:11px; color:var(--ink-soft);
     background:var(--panel); border:1px solid var(--line); border-radius:20px;
-    padding:5px 12px; white-space:nowrap;
+    padding:5px 12px; white-space:nowrap; cursor:pointer; user-select:none;
+    display:flex; align-items:center; gap:5px;
   }
+  .stat-chip:active{transform:scale(.96);}
+  .stat-chip.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .stat-chip.active b{color:#fff;}
   .stat-chip b{color:var(--ink); font-weight:700;}
+
+  .kpi-grid{display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:16px;}
+  .kpi-box{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px;}
+  .kpi-box .kpi-num{font-family:var(--mono); font-size:22px; font-weight:700; color:var(--accent);}
+  .kpi-box .kpi-label{font-size:11.5px; color:var(--ink-soft); margin-top:2px;}
+  .kpi-section-title{font-size:13px; font-weight:700; margin:16px 0 8px; color:var(--ink);}
+  .kpi-row{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:8px 0; border-bottom:1px dashed var(--line); font-size:13px;
+  }
+  .kpi-row .kpi-row-main{flex:1; min-width:0;}
+  .kpi-row .kpi-row-title{font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .kpi-row .kpi-row-sub{font-family:var(--mono); font-size:11px; color:var(--ink-soft);}
+  .kpi-row .kpi-count{
+    font-family:var(--mono); font-weight:700; background:color-mix(in srgb, var(--accent) 14%, transparent);
+    color:var(--accent); border-radius:6px; padding:2px 8px; flex-shrink:0; font-size:12px;
+  }
+
+  .cat-list-item{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:11px 4px; border-bottom:1px solid var(--line); cursor:pointer; font-size:14px;
+  }
+  .cat-list-item:active{background:var(--bg);}
+  .cat-list-item .cnt{font-family:var(--mono); font-size:12px; color:var(--ink-soft);}
+
 
   .item-card{
     background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
@@ -242,6 +271,7 @@
       </div>
     </div>
     <div class="top-actions">
+      <button class="icon-btn" id="statsBtn" title="Στατιστικά">📈</button>
       <button class="icon-btn" id="exportBtn" title="Εξαγωγή">📤</button>
       <button class="icon-btn" id="historyAllBtn" title="Πλήρες ιστορικό">🕘</button>
       <button class="icon-btn" id="themeBtn" title="Θέμα">🌙</button>
@@ -355,6 +385,30 @@
   </div>
 </div>
 
+<!-- Category picker sheet -->
+<div class="sheet-overlay" id="catOverlay">
+  <div class="sheet">
+    <h2>Κατηγορίες</h2>
+    <div class="sub">Πάτα μια κατηγορία για να φιλτράρεις τη λίστα</div>
+    <div id="catListArea"></div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="closeCatBtn">Κλείσιμο</button>
+    </div>
+  </div>
+</div>
+
+<!-- Stats / KPI sheet -->
+<div class="sheet-overlay" id="statsOverlay">
+  <div class="sheet">
+    <h2>Στατιστικά Ευρετηρίου</h2>
+    <div class="sub">Τι ψάχνει και τι κοιτάει περισσότερο η ομάδα</div>
+    <div id="statsBody"><div class="loading"><div class="spinner"></div>Υπολογισμός…</div></div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="closeStatsBtn">Κλείσιμο</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -368,6 +422,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxL5jXnWPbrEAr2
 let ITEMS = [];
 let LAST_FILTERED = [];
 let CURRENT_EDIT_ID = null;
+let onlyNewFilter = false;
 let USER_NAME = localStorage.getItem('ea_user') || '';
 
 /* =========== INIT =========== */
@@ -415,6 +470,15 @@ function bindEvents(){
   document.getElementById('exportOverlay').addEventListener('click', (e) => {
     if (e.target.id === 'exportOverlay') document.getElementById('exportOverlay').classList.remove('open');
   });
+  document.getElementById('closeCatBtn').onclick = () => document.getElementById('catOverlay').classList.remove('open');
+  document.getElementById('catOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'catOverlay') document.getElementById('catOverlay').classList.remove('open');
+  });
+  document.getElementById('statsBtn').onclick = openStats;
+  document.getElementById('closeStatsBtn').onclick = () => document.getElementById('statsOverlay').classList.remove('open');
+  document.getElementById('statsOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'statsOverlay') document.getElementById('statsOverlay').classList.remove('open');
+  });
   document.getElementById('closeLogBtn').onclick = () => document.getElementById('logOverlay').classList.remove('open');
   document.getElementById('itemOverlay').addEventListener('click', (e) => {
     if (e.target.id === 'itemOverlay') closeItemForm();
@@ -431,7 +495,7 @@ function applyTheme(t){
 }
 
 /* =========== API =========== */
-const READ_ACTIONS = ['list', 'history', 'fullLog'];
+const READ_ACTIONS = ['list', 'history', 'fullLog', 'view', 'search', 'stats'];
 
 function apiCall(action, payload) {
   payload = payload || {};
@@ -488,25 +552,77 @@ function renderStats(){
   const cats = new Set(ITEMS.map(i => i.Κατηγορία).filter(Boolean)).size;
   const newCount = ITEMS.filter(i => String(i.Σημειώσεις || '').includes('ΝΕΟ')).length;
   document.getElementById('statRow').innerHTML = `
-    <div class="stat-chip"><b>${total}</b> υλικά</div>
-    <div class="stat-chip"><b>${cats}</b> κατηγορίες</div>
-    ${newCount ? `<div class="stat-chip"><b>${newCount}</b> προς έλεγχο</div>` : ''}
+    <div class="stat-chip" id="chipAll"><b>${total}</b> υλικά</div>
+    <div class="stat-chip" id="chipCats"><b>${cats}</b> κατηγορίες</div>
+    ${newCount ? `<div class="stat-chip" id="chipNew"><b>${newCount}</b> προς έλεγχο</div>` : ''}
   `;
+  document.getElementById('chipAll').onclick = () => {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('catFilter').value = '';
+    onlyNewFilter = false;
+    renderList();
+  };
+  document.getElementById('chipCats').onclick = openCategoryPicker;
+  const chipNew = document.getElementById('chipNew');
+  if (chipNew) {
+    chipNew.onclick = () => {
+      onlyNewFilter = !onlyNewFilter;
+      renderList();
+    };
+  }
+}
+
+function openCategoryPicker(){
+  const counts = {};
+  ITEMS.forEach(i => {
+    const c = i.Κατηγορία || '(χωρίς κατηγορία)';
+    counts[c] = (counts[c] || 0) + 1;
+  });
+  const cats = Object.keys(counts).sort((a,b) => counts[b]-counts[a]);
+  const area = document.getElementById('catListArea');
+  area.innerHTML = cats.map(c => `
+    <div class="cat-list-item" data-cat="${escapeHtml(c)}">
+      <span>${escapeHtml(c)}</span><span class="cnt">${counts[c]}</span>
+    </div>
+  `).join('');
+  area.querySelectorAll('.cat-list-item').forEach(el => {
+    el.onclick = () => {
+      const c = el.dataset.cat;
+      document.getElementById('catFilter').value = (c === '(χωρίς κατηγορία)') ? '' : c;
+      onlyNewFilter = false;
+      renderList();
+      document.getElementById('catOverlay').classList.remove('open');
+    };
+  });
+  document.getElementById('catOverlay').classList.add('open');
 }
 
 /* =========== LIST RENDER =========== */
+let searchLogTimer = null;
+
 function renderList(){
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   const cat = document.getElementById('catFilter').value;
   let filtered = ITEMS;
   if (cat) filtered = filtered.filter(i => i.Κατηγορία === cat);
+  if (onlyNewFilter) filtered = filtered.filter(i => String(i.Σημειώσεις || '').includes('ΝΕΟ'));
   if (q) {
     filtered = filtered.filter(i => {
       const hay = [i.Περιγραφή, i.ΠαλιόςΚωδικός, i.ΝέοςΚωδικός, i.Θέση, i.Θέση2, i.Κατηγορία, i.Σημειώσεις]
         .join(' ').toLowerCase();
       return hay.includes(q);
     });
+    clearTimeout(searchLogTimer);
+    searchLogTimer = setTimeout(() => {
+      apiCall('search', { q: document.getElementById('searchInput').value.trim(), user: USER_NAME }).catch(() => {});
+    }, 900);
   }
+
+  const chipNew = document.getElementById('chipNew');
+  if (chipNew) chipNew.classList.toggle('active', onlyNewFilter);
+  const chipAll = document.getElementById('chipAll');
+  if (chipAll) chipAll.classList.toggle('active', !cat && !q && !onlyNewFilter);
+
   const area = document.getElementById('listArea');
   LAST_FILTERED = filtered;
   if (filtered.length === 0) {
@@ -562,6 +678,7 @@ function openItemForm(id){
     document.getElementById('f_pos2').value = item.Θέση2 || '';
     document.getElementById('f_notes').value = item.Σημειώσεις || '';
     histBlock.style.display = 'block';
+    apiCall('view', { id: item.ID, user: USER_NAME }).catch(() => {});
     document.getElementById('itemHistoryList').innerHTML = '<div class="loading">Φόρτωση ιστορικού…</div>';
     apiCall('history', { id }).then(res => {
       renderHistory(document.getElementById('itemHistoryList'), res.history || []);
@@ -708,6 +825,71 @@ function exportPdf(){
 function dateStamp(){
   const d = new Date();
   return d.toISOString().slice(0,10);
+}
+
+/* =========== ΣΤΑΤΙΣΤΙΚΑ / KPI =========== */
+function openStats(){
+  document.getElementById('statsOverlay').classList.add('open');
+  const body = document.getElementById('statsBody');
+  body.innerHTML = '<div class="loading"><div class="spinner"></div>Υπολογισμός…</div>';
+  apiCall('stats').then(res => {
+    renderStatsBody(res.stats);
+  }).catch(err => {
+    body.innerHTML = 'Σφάλμα: ' + escapeHtml(err.message);
+  });
+}
+
+function renderStatsBody(s){
+  const body = document.getElementById('statsBody');
+  const actionLabels = { 'ΠΡΟΣΘΗΚΗ':'Προσθήκες', 'ΕΠΕΞΕΡΓΑΣΙΑ':'Επεξεργασίες', 'ΔΙΑΓΡΑΦΗ':'Διαγραφές', 'ΠΡΟΒΟΛΗ':'Προβολές', 'ΑΝΑΖΗΤΗΣΗ':'Αναζητήσεις' };
+
+  let html = `
+    <div class="kpi-grid">
+      <div class="kpi-box"><div class="kpi-num">${s.totalItems}</div><div class="kpi-label">Σύνολο υλικών</div></div>
+      <div class="kpi-box"><div class="kpi-num">${s.totalCategories}</div><div class="kpi-label">Κατηγορίες</div></div>
+      <div class="kpi-box"><div class="kpi-num">${s.totalNew}</div><div class="kpi-label">Προς έλεγχο</div></div>
+      <div class="kpi-box"><div class="kpi-num">${s.totalActions}</div><div class="kpi-label">Καταγεγραμμένες ενέργειες</div></div>
+    </div>
+  `;
+
+  if (s.topViewed && s.topViewed.length) {
+    html += '<div class="kpi-section-title">🔥 Πιο ψαγμένα υλικά (προβολές)</div>';
+    html += s.topViewed.map(v => `
+      <div class="kpi-row">
+        <div class="kpi-row-main">
+          <div class="kpi-row-title">${escapeHtml(v.item.Περιγραφή || '')}</div>
+          <div class="kpi-row-sub">${escapeHtml(v.item.Κατηγορία || '')}${v.item.Θέση ? ' · θέση ' + escapeHtml(v.item.Θέση) : ''}</div>
+        </div>
+        <div class="kpi-count">${v.count}×</div>
+      </div>
+    `).join('');
+  }
+
+  if (s.topSearches && s.topSearches.length) {
+    html += '<div class="kpi-section-title">🔎 Πιο συχνοί όροι αναζήτησης</div>';
+    html += s.topSearches.map(v => `
+      <div class="kpi-row">
+        <div class="kpi-row-main"><div class="kpi-row-title">"${escapeHtml(v.term)}"</div></div>
+        <div class="kpi-count">${v.count}×</div>
+      </div>
+    `).join('');
+  }
+
+  if (s.topUsers && s.topUsers.length) {
+    html += '<div class="kpi-section-title">👤 Πιο ενεργοί χρήστες</div>';
+    html += s.topUsers.map(v => `
+      <div class="kpi-row">
+        <div class="kpi-row-main"><div class="kpi-row-title">${escapeHtml(v.user)}</div></div>
+        <div class="kpi-count">${v.count}</div>
+      </div>
+    `).join('');
+  }
+
+  if ((!s.topViewed || !s.topViewed.length) && (!s.topSearches || !s.topSearches.length)) {
+    html += '<div style="color:var(--ink-soft); font-size:13px; margin-top:10px;">Ακόμα δεν υπάρχουν αρκετά δεδομένα χρήσης — θα γεμίσει καθώς η ομάδα ψάχνει και ανοίγει υλικά.</div>';
+  }
+
+  body.innerHTML = html;
 }
 
 /* =========== HELPERS =========== */
