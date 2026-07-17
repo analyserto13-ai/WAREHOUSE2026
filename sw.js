@@ -1,10 +1,14 @@
 // Ευρετήριο Αποθήκης - Service Worker
 // Αύξησε τον αριθμό εδώ κάθε φορά που κάνεις σημαντική αλλαγή στο index.html,
 // ώστε οι συσκευές να παίρνουν τη νέα έκδοση αντί για παλιά cached αρχεία.
-const CACHE_NAME = 'ea-cache-v1';
+const CACHE_NAME = 'ea-cache-v2';
 const APP_SHELL = [
   './index.html',
-  './manifest.json'
+  './manifest.json',
+  './banner.jpg',
+  './splash.jpg',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {

@@ -190,9 +190,39 @@
   @media (min-width:700px){
     .item-meta{font-size:12.5px;}
   }
+
+  /* Splash screen */
+  #splash{
+    position:fixed; inset:0; z-index:100;
+    background:#0B151C url('splash.jpg') center center / cover no-repeat;
+    display:flex; align-items:flex-end; justify-content:center;
+    transition:opacity .5s ease;
+  }
+  #splash::after{
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(to top, rgba(11,21,28,.85), rgba(11,21,28,.15) 55%);
+  }
+  #splash .splash-label{
+    position:relative; z-index:1; color:#EDEAE2; font-family:var(--mono);
+    font-size:12px; letter-spacing:1px; padding-bottom:34px; opacity:.85;
+  }
+  #splash.hide{opacity:0; pointer-events:none;}
+
+  /* Banner */
+  .banner-wrap{
+    width:100%; max-width:900px; margin:0 auto 4px; padding:0 14px;
+  }
+  .banner-img{
+    width:100%; display:block; border-radius:0 0 14px 14px;
+    box-shadow:0 4px 14px rgba(0,0,0,.15);
+  }
 </style>
 </head>
 <body data-theme="light">
+
+<div id="splash"><div class="splash-label">MOTOR OIL · WAREHOUSE INDEX</div></div>
+
+<div class="banner-wrap"><img class="banner-img" src="banner.jpg" alt="Motor Oil Warehouse Index"></div>
 
 <header class="top">
   <div class="top-row">
@@ -305,7 +335,7 @@
 
 <script>
 /* =========== ΡΥΘΜΙΣΕΙΣ =========== */
-const APPS_SCRIPT_URL = 'PASTE_YOUR_DEPLOYMENT_URL_HERE'; // <-- βάλε εδώ το exec URL του Apps Script
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxL5jXnWPbrEAr2mA1OS0BTtnSpiAfjzRwbOLIS-pzGC__QNlZvFxr1A31FJIkloaZy9Q/exec';
 
 /* =========== STATE =========== */
 let ITEMS = [];
@@ -322,6 +352,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   loadItems();
   bindEvents();
+  // Κρύψε την οθόνη εκκίνησης μόλις φορτώσουν τα δεδομένα (ή το αργότερο μετά από 1.6s)
+  const hideSplash = () => document.getElementById('splash').classList.add('hide');
+  setTimeout(hideSplash, 1600);
+  window.addEventListener('ea:itemsLoaded', hideSplash, { once: true });
 });
 
 function bindEvents(){
@@ -378,6 +412,7 @@ function loadItems(){
     populateCategories();
     renderStats();
     renderList();
+    window.dispatchEvent(new Event('ea:itemsLoaded'));
   }).catch(err => {
     document.getElementById('listArea').innerHTML =
       '<div class="empty-state"><div class="big">⚠️</div>Σφάλμα φόρτωσης: ' + escapeHtml(err.message) +
