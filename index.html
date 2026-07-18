@@ -361,18 +361,19 @@
   </div>
 </div>
 
-<!-- PIN gate -->
+<!-- PIN για ευαίσθητες ενέργειες (π.χ. αναίρεση) -->
 <div class="sheet-overlay" id="pinOverlay">
   <div class="sheet">
-    <h2>🔒 Κωδικός πρόσβασης</h2>
-    <div class="sub">Πληκτρολόγησε τον κωδικό της ομάδας για να συνεχίσεις</div>
+    <h2 id="pinTitle">🔒 Κωδικός επιβεβαίωσης</h2>
+    <div class="sub" id="pinSub">Πληκτρολόγησε τον κωδικό για να συνεχίσεις</div>
     <div class="field">
       <label>Κωδικός</label>
       <input id="f_pin" type="password" inputmode="numeric" maxlength="8" placeholder="••••">
     </div>
     <div id="pinError" style="color:var(--warn); font-size:12.5px; margin:-4px 0 10px; display:none;">Λάθος κωδικός, δοκίμασε ξανά.</div>
     <div class="sheet-actions">
-      <button class="btn btn-primary" id="pinBtn" style="flex:1;">Είσοδος</button>
+      <button class="btn btn-ghost" id="pinCancelBtn">Άκυρο</button>
+      <button class="btn btn-primary" id="pinBtn">Επιβεβαίωση</button>
     </div>
   </div>
 </div>
@@ -451,20 +452,6 @@ let USER_NAME = localStorage.getItem('ea_user') || '';
 document.addEventListener('DOMContentLoaded', () => {
   applyTheme(localStorage.getItem('ea_theme') || 'light');
   bindEvents();
-  if (localStorage.getItem('ea_pin_ok') === '1') {
-    afterPinOk();
-  } else {
-    document.getElementById('pinOverlay').classList.add('open');
-  }
-  // Η οθόνη εκκίνησης μένει σταθερά 4.6s ώστε να προλαβαίνει να φανεί καλά η φωτογραφία
-  const hideSplash = () => document.getElementById('splash').classList.add('hide');
-  setTimeout(hideSplash, 4600);
-});
-
-const APP_PIN = '3107';
-
-function afterPinOk(){
-  document.getElementById('pinOverlay').classList.remove('open');
   if (!USER_NAME) {
     loadUserList();
     document.getElementById('nameOverlay').classList.add('open');
@@ -472,14 +459,35 @@ function afterPinOk(){
     document.getElementById('userLabel').textContent = USER_NAME;
   }
   loadItems();
+  // Η οθόνη εκκίνησης μένει σταθερά 4.6s ώστε να προλαβαίνει να φανεί καλά η φωτογραφία
+  const hideSplash = () => document.getElementById('splash').classList.add('hide');
+  setTimeout(hideSplash, 4600);
+});
+
+const APP_PIN = '3107';
+let pendingPinAction = null;
+
+/**
+ * Ζητάει τον κωδικό 3107 πριν εκτελέσει μια ευαίσθητη ενέργεια (π.χ. αναίρεση).
+ * Δεν μπλοκάρει τη γενική είσοδο στην εφαρμογή — μόνο συγκεκριμένες ενέργειες.
+ */
+function requirePin(title, sub, actionFn){
+  pendingPinAction = actionFn;
+  document.getElementById('pinTitle').textContent = title || '🔒 Κωδικός επιβεβαίωσης';
+  document.getElementById('pinSub').textContent = sub || 'Πληκτρολόγησε τον κωδικό για να συνεχίσεις';
+  document.getElementById('f_pin').value = '';
+  document.getElementById('pinError').style.display = 'none';
+  document.getElementById('pinOverlay').classList.add('open');
 }
 
 function checkPin(){
   const v = document.getElementById('f_pin').value.trim();
   if (v === APP_PIN) {
-    localStorage.setItem('ea_pin_ok', '1');
     document.getElementById('pinError').style.display = 'none';
-    afterPinOk();
+    document.getElementById('pinOverlay').classList.remove('open');
+    const fn = pendingPinAction;
+    pendingPinAction = null;
+    if (fn) fn();
   } else {
     document.getElementById('pinError').style.display = 'block';
   }
@@ -511,6 +519,10 @@ function loadUserList(){
 
 function bindEvents(){
   document.getElementById('pinBtn').onclick = checkPin;
+  document.getElementById('pinCancelBtn').onclick = () => {
+    pendingPinAction = null;
+    document.getElementById('pinOverlay').classList.remove('open');
+  };
   document.getElementById('f_pin').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') checkPin();
   });
@@ -1017,7 +1029,7 @@ function showToastWithUndo(msg, undoFn){
   btn.onclick = () => {
     clearInterval(countdown);
     t.classList.remove('show');
-    undoFn();
+    requirePin('🔒 Επιβεβαίωση αναίρεσης', 'Πληκτρολόγησε τον κωδικό για να γίνει η αναίρεση', undoFn);
   };
   t.appendChild(span);
   t.appendChild(btn);
