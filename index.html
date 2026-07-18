@@ -93,7 +93,7 @@
   /* Η αναδυόμενη λίστα επιλογών αποδίδεται από το λειτουργικό σύστημα, όχι από εμάς,
      οπότε πρέπει να ορίσουμε ρητά σκούρο κείμενο σε ανοιχτό φόντο για τα options,
      αλλιώς κληρονομούν το ανοιχτόχρωμο κείμενο του select και γίνονται αόρατα. */
-  select#catFilter option{
+  select#catFilter option, select#f_name_select option{
     color:#12232E !important;
     background:#FFFFFF !important;
     font-size:16px;
@@ -211,11 +211,17 @@
 
   .toast{
     position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
-    background:var(--steel); color:#EDEAE2; padding:11px 18px; border-radius:24px;
+    background:var(--steel); color:#EDEAE2; padding:11px 12px 11px 18px; border-radius:24px;
     font-size:14.5px; z-index:60; opacity:0; pointer-events:none; transition:opacity .25s, bottom .25s;
     font-family:var(--sans); box-shadow:0 6px 16px rgba(0,0,0,.3);
+    display:flex; align-items:center; gap:10px; white-space:nowrap;
   }
-  .toast.show{opacity:1; bottom:100px;}
+  .toast.show{opacity:1; bottom:100px; pointer-events:auto;}
+  .toast-undo-btn{
+    background:var(--accent); color:#fff; border:none; border-radius:16px;
+    padding:6px 13px; font-weight:700; font-size:12.5px; cursor:pointer; font-family:var(--sans);
+  }
+  .toast-undo-btn:active{transform:scale(.95);}
 
   .loading{text-align:center; padding:40px; color:var(--ink-soft); font-family:var(--mono); font-size:14.5px;}
   .spinner{
@@ -355,17 +361,33 @@
   </div>
 </div>
 
+<!-- PIN gate -->
+<div class="sheet-overlay" id="pinOverlay">
+  <div class="sheet">
+    <h2>🔒 Κωδικός πρόσβασης</h2>
+    <div class="sub">Πληκτρολόγησε τον κωδικό της ομάδας για να συνεχίσεις</div>
+    <div class="field">
+      <label>Κωδικός</label>
+      <input id="f_pin" type="password" inputmode="numeric" maxlength="8" placeholder="••••">
+    </div>
+    <div id="pinError" style="color:var(--warn); font-size:12.5px; margin:-4px 0 10px; display:none;">Λάθος κωδικός, δοκίμασε ξανά.</div>
+    <div class="sheet-actions">
+      <button class="btn btn-primary" id="pinBtn" style="flex:1;">Είσοδος</button>
+    </div>
+  </div>
+</div>
+
 <!-- Name prompt -->
 <div class="sheet-overlay" id="nameOverlay">
   <div class="sheet">
     <h2>Καλωσόρισες 👋</h2>
-    <div class="sub">Πες μας το όνομά σου — θα καταγράφεται στις αλλαγές που κάνεις.</div>
-    <div class="field">
+    <div class="sub">Διάλεξε το όνομά σου — θα καταγράφεται στις αλλαγές που κάνεις.</div>
+    <div class="field" id="nameFieldWrap">
       <label>Όνομα</label>
-      <input id="f_name" placeholder="π.χ. Ευάγγελος Μαρτίνος">
+      <select id="f_name_select"><option value="">Φόρτωση ονομάτων…</option></select>
     </div>
     <div class="sheet-actions">
-      <button class="btn btn-primary" id="saveNameBtn" style="flex:1;">Συνέχεια</button>
+      <button class="btn btn-primary" id="saveNameBtn" style="flex:1;" disabled>Συνέχεια</button>
     </div>
   </div>
 </div>
@@ -428,25 +450,77 @@ let USER_NAME = localStorage.getItem('ea_user') || '';
 /* =========== INIT =========== */
 document.addEventListener('DOMContentLoaded', () => {
   applyTheme(localStorage.getItem('ea_theme') || 'light');
-  if (!USER_NAME) {
-    document.getElementById('nameOverlay').classList.add('open');
-  } else {
-    document.getElementById('userLabel').textContent = USER_NAME;
-  }
-  loadItems();
   bindEvents();
+  if (localStorage.getItem('ea_pin_ok') === '1') {
+    afterPinOk();
+  } else {
+    document.getElementById('pinOverlay').classList.add('open');
+  }
   // Η οθόνη εκκίνησης μένει σταθερά 4.6s ώστε να προλαβαίνει να φανεί καλά η φωτογραφία
   const hideSplash = () => document.getElementById('splash').classList.add('hide');
   setTimeout(hideSplash, 4600);
 });
 
+const APP_PIN = '3107';
+
+function afterPinOk(){
+  document.getElementById('pinOverlay').classList.remove('open');
+  if (!USER_NAME) {
+    loadUserList();
+    document.getElementById('nameOverlay').classList.add('open');
+  } else {
+    document.getElementById('userLabel').textContent = USER_NAME;
+  }
+  loadItems();
+}
+
+function checkPin(){
+  const v = document.getElementById('f_pin').value.trim();
+  if (v === APP_PIN) {
+    localStorage.setItem('ea_pin_ok', '1');
+    document.getElementById('pinError').style.display = 'none';
+    afterPinOk();
+  } else {
+    document.getElementById('pinError').style.display = 'block';
+  }
+}
+
+function loadUserList(){
+  const sel = document.getElementById('f_name_select');
+  const btn = document.getElementById('saveNameBtn');
+  apiCall('users').then(res => {
+    const names = res.users || [];
+    if (!names.length) {
+      // Fallback: δεν έχει οριστεί ακόμα λίστα ονομάτων στο Google Sheet -> ελεύθερο πεδίο
+      sel.outerHTML = '<input id="f_name_select" placeholder="π.χ. Ευάγγελος Μαρτίνος">';
+      document.getElementById('f_name_select').addEventListener('input', (e) => {
+        btn.disabled = !e.target.value.trim();
+      });
+      return;
+    }
+    sel.innerHTML = '<option value="">— Διάλεξε όνομα —</option>' +
+      names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+    sel.addEventListener('change', () => { btn.disabled = !sel.value; });
+  }).catch(() => {
+    sel.outerHTML = '<input id="f_name_select" placeholder="π.χ. Ευάγγελος Μαρτίνος">';
+    document.getElementById('f_name_select').addEventListener('input', (e) => {
+      btn.disabled = !e.target.value.trim();
+    });
+  });
+}
+
 function bindEvents(){
+  document.getElementById('pinBtn').onclick = checkPin;
+  document.getElementById('f_pin').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') checkPin();
+  });
   document.getElementById('themeBtn').onclick = () => {
     const cur = document.body.getAttribute('data-theme');
     applyTheme(cur === 'dark' ? 'light' : 'dark');
   };
   document.getElementById('saveNameBtn').onclick = () => {
-    const v = document.getElementById('f_name').value.trim();
+    const el = document.getElementById('f_name_select');
+    const v = (el.value || '').trim();
     if (!v) return;
     USER_NAME = v;
     localStorage.setItem('ea_user', v);
@@ -495,7 +569,7 @@ function applyTheme(t){
 }
 
 /* =========== API =========== */
-const READ_ACTIONS = ['list', 'history', 'fullLog', 'view', 'search', 'stats'];
+const READ_ACTIONS = ['list', 'history', 'fullLog', 'view', 'search', 'stats', 'users'];
 
 function apiCall(action, payload) {
   payload = payload || {};
@@ -705,7 +779,7 @@ function saveItem(){
   const newC = document.getElementById('f_new').value.trim();
   if (!desc) { showToast('Η περιγραφή είναι υποχρεωτική'); return; }
   if (!oldC && !newC) { showToast('Χρειάζεται τουλάχιστον ένας κωδικός'); return; }
-  if (!USER_NAME) { document.getElementById('nameOverlay').classList.add('open'); return; }
+  if (!USER_NAME) { loadUserList(); document.getElementById('nameOverlay').classList.add('open'); return; }
 
   const payload = {
     Περιγραφή: desc,
@@ -721,13 +795,14 @@ function saveItem(){
   const action = CURRENT_EDIT_ID ? 'update' : 'add';
   if (CURRENT_EDIT_ID) payload.ID = CURRENT_EDIT_ID;
 
+  const fieldLabels = {
+    Περιγραφή:'Περιγραφή', Κατηγορία:'Κατηγορία', Θέση:'Θέση', ΠαλιόςΚωδικός:'Παλιός Κωδικός',
+    ΝέοςΚωδικός:'Νέος Κωδικός', Θέση2:'Θέση (νέα)', Σημειώσεις:'Σημειώσεις'
+  };
+  const original = CURRENT_EDIT_ID ? ITEMS.find(i => String(i.ID) === String(CURRENT_EDIT_ID)) : null;
+
   // Σε επεξεργασία υπάρχοντος υλικού: δείξε τι άλλαξε και ζήτησε επιβεβαίωση
   if (CURRENT_EDIT_ID) {
-    const original = ITEMS.find(i => String(i.ID) === String(CURRENT_EDIT_ID));
-    const fieldLabels = {
-      Περιγραφή:'Περιγραφή', Κατηγορία:'Κατηγορία', Θέση:'Θέση', ΠαλιόςΚωδικός:'Παλιός Κωδικός',
-      ΝέοςΚωδικός:'Νέος Κωδικός', Θέση2:'Θέση (νέα)', Σημειώσεις:'Σημειώσεις'
-    };
     const diffs = [];
     Object.keys(fieldLabels).forEach(k => {
       const oldVal = String((original && original[k]) || '').trim();
@@ -748,10 +823,26 @@ function saveItem(){
   const btn = document.getElementById('saveBtn');
   btn.disabled = true; btn.textContent = 'Αποθήκευση…';
 
-  apiCall(action, payload).then(() => {
-    showToast(CURRENT_EDIT_ID ? 'Ενημερώθηκε ✓' : 'Προστέθηκε ✓');
+  apiCall(action, payload).then((res) => {
     closeItemForm();
     loadItems();
+    if (action === 'add' && res.item && res.item.ID) {
+      const newId = res.item.ID;
+      showToastWithUndo('Προστέθηκε ✓', () => {
+        apiCall('delete', { ID: newId, user: USER_NAME }).then(() => {
+          showToast('Η προσθήκη αναιρέθηκε');
+          loadItems();
+        }).catch(e => showToast('Σφάλμα αναίρεσης: ' + e.message));
+      });
+    } else if (action === 'update' && original) {
+      showToastWithUndo('Ενημερώθηκε ✓', () => {
+        const revert = Object.assign({ ID: CURRENT_EDIT_ID, user: USER_NAME }, original);
+        apiCall('update', revert).then(() => {
+          showToast('Η αλλαγή αναιρέθηκε');
+          loadItems();
+        }).catch(e => showToast('Σφάλμα αναίρεσης: ' + e.message));
+      });
+    }
   }).catch(err => {
     showToast('Σφάλμα: ' + err.message);
   }).finally(() => {
@@ -904,9 +995,34 @@ function formatDate(v){
 }
 function showToast(msg){
   const t = document.getElementById('toast');
+  t.innerHTML = '';
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+function showToastWithUndo(msg, undoFn){
+  const t = document.getElementById('toast');
+  t.innerHTML = '';
+  const span = document.createElement('span');
+  span.textContent = msg;
+  const btn = document.createElement('button');
+  btn.className = 'toast-undo-btn';
+  btn.textContent = 'Αναίρεση';
+  let seconds = 8;
+  const countdown = setInterval(() => {
+    seconds--;
+    if (seconds <= 0) { clearInterval(countdown); t.classList.remove('show'); }
+  }, 1000);
+  btn.onclick = () => {
+    clearInterval(countdown);
+    t.classList.remove('show');
+    undoFn();
+  };
+  t.appendChild(span);
+  t.appendChild(btn);
+  t.classList.add('show');
+  setTimeout(() => { clearInterval(countdown); t.classList.remove('show'); }, 8000);
 }
 
 /* =========== PWA / Service worker =========== */
