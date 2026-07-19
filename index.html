@@ -56,15 +56,14 @@
   .top-row{display:flex; align-items:center; justify-content:space-between; gap:10px;}
   .brand{display:flex; align-items:center; gap:10px;}
   .brand-mark{
-    width:34px;height:34px;border-radius:8px;
-    background:var(--accent); color:#fff;
+    width:36px;height:36px;border-radius:50%;
+    background:linear-gradient(135deg, #E14B3C, var(--accent)); color:#fff;
     display:flex;align-items:center;justify-content:center;
-    font-family:var(--mono); font-weight:700; font-size:15px;
-    letter-spacing:-1px;
+    font-family:var(--mono); font-weight:800; font-size:16px;
+    box-shadow:0 2px 8px rgba(0,0,0,.25);
     flex-shrink:0;
   }
-  .brand h1{font-size:17.5px; margin:0; font-weight:700; letter-spacing:.2px;}
-  .brand small{display:block; font-size:12.5px; color:#9FB0B8; font-family:var(--mono); margin-top:1px;}
+  .brand-greet{display:block; font-size:14.5px; color:#EDEAE2; font-family:var(--sans); font-weight:600;}
   .icon-btn{
     background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15);
     color:#EDEAE2; border-radius:8px; width:36px; height:36px;
@@ -129,6 +128,11 @@
     font-family:var(--mono); font-weight:700; background:color-mix(in srgb, var(--accent) 14%, transparent);
     color:var(--accent); border-radius:6px; padding:2px 8px; flex-shrink:0; font-size:13.5px;
   }
+  .kpi-row-clickable{cursor:pointer; margin:0 -4px; padding-left:4px; padding-right:4px; border-radius:8px;}
+  .kpi-row-clickable:active{background:var(--bg);}
+  .kpi-row-clickable::after{
+    content:'›'; font-size:18px; color:var(--ink-soft); margin-left:4px; flex-shrink:0;
+  }
 
   .cat-list-item{
     display:flex; justify-content:space-between; align-items:center;
@@ -142,6 +146,11 @@
     background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
     padding:13px 14px; margin-bottom:9px; cursor:pointer;
     transition:box-shadow .15s, transform .1s;
+    animation:cardIn .28s ease-out backwards;
+  }
+  @keyframes cardIn{
+    from{opacity:0; transform:translateY(6px);}
+    to{opacity:1; transform:translateY(0);}
   }
   .item-card:active{transform:scale(.995);}
   .item-top{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
@@ -157,8 +166,15 @@
     display:inline-block; background:var(--new-badge); color:#3A2B00; font-size:11.5px;
     font-weight:700; padding:2px 7px; border-radius:5px; margin-top:8px; font-family:var(--sans);
   }
+  .item-updated{
+    font-family:var(--mono); font-size:10.5px; color:var(--ink-soft); margin-top:7px; opacity:.75;
+  }
   .empty-state{text-align:center; padding:60px 20px; color:var(--ink-soft);}
   .empty-state .big{font-size:38px; margin-bottom:8px;}
+  .app-footer{
+    text-align:center; padding:22px 10px 10px; color:var(--ink-soft); opacity:.55;
+    font-family:var(--mono); font-size:11px; letter-spacing:.4px;
+  }
 
   .fab{
     position:fixed; right:18px; bottom:18px; z-index:30;
@@ -253,11 +269,16 @@
 
   /* Banner */
   .banner-wrap{
-    width:100%; max-width:900px; margin:0 auto 4px; padding:0 14px;
+    width:100%; max-width:900px; margin:0 auto; padding:0 14px; position:relative;
   }
   .banner-img{
     width:100%; display:block; border-radius:0 0 14px 14px;
     box-shadow:0 4px 14px rgba(0,0,0,.15);
+  }
+  .banner-fade{
+    position:absolute; left:14px; right:14px; bottom:0; height:46px;
+    background:linear-gradient(to bottom, rgba(18,35,46,0), var(--steel));
+    border-radius:0 0 14px 14px; pointer-events:none;
   }
 </style>
 </head>
@@ -265,15 +286,17 @@
 
 <div id="splash"><div class="splash-label">MOTOR OIL · WAREHOUSE INDEX</div></div>
 
-<div class="banner-wrap"><img class="banner-img" src="banner.jpg" alt="Motor Oil Warehouse Index"></div>
+<div class="banner-wrap">
+  <img class="banner-img" src="banner.jpg" alt="Motor Oil Warehouse Index">
+  <div class="banner-fade"></div>
+</div>
 
 <header class="top">
   <div class="top-row">
     <div class="brand">
-      <div class="brand-mark">Ε.Α.</div>
+      <div class="brand-mark">M</div>
       <div>
-        <h1>Ευρετήριο Αποθήκης</h1>
-        <small id="userLabel">—</small>
+        <small id="userLabel" class="brand-greet">—</small>
       </div>
     </div>
     <div class="top-actions">
@@ -297,6 +320,7 @@
   <div id="listArea">
     <div class="loading"><div class="spinner"></div>Φόρτωση υλικών…</div>
   </div>
+  <div class="app-footer">Motor Oil · Ομάδα Οργανολογίας · Ευρετήριο Αποθήκης</div>
 </main>
 
 <button class="fab" id="addBtn" title="Νέο υλικό">+</button>
@@ -456,7 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadUserList();
     document.getElementById('nameOverlay').classList.add('open');
   } else {
-    document.getElementById('userLabel').textContent = USER_NAME;
+    document.getElementById('userLabel').textContent = 'Γεια σου, ' + USER_NAME + ' 👋';
   }
   loadItems();
   // Η οθόνη εκκίνησης μένει σταθερά 4.6s ώστε να προλαβαίνει να φανεί καλά η φωτογραφία
@@ -536,7 +560,7 @@ function bindEvents(){
     if (!v) return;
     USER_NAME = v;
     localStorage.setItem('ea_user', v);
-    document.getElementById('userLabel').textContent = v;
+    document.getElementById('userLabel').textContent = 'Γεια σου, ' + v + ' 👋';
     document.getElementById('nameOverlay').classList.remove('open');
   };
   document.getElementById('searchInput').addEventListener('input', renderList);
@@ -725,11 +749,13 @@ function renderList(){
   }
 }
 
-function itemCardHtml(i){
+function itemCardHtml(i, idx){
   const isNew = String(i.Σημειώσεις || '').includes('ΝΕΟ');
   const codes = [i.ΠαλιόςΚωδικός, i.ΝέοςΚωδικός].filter(Boolean);
+  const delay = Math.min(idx || 0, 14) * 0.025;
+  const updated = i.ΗμΕνημέρωσης ? formatDate(i.ΗμΕνημέρωσης) : '';
   return `
-    <div class="item-card" data-id="${i.ID}">
+    <div class="item-card" data-id="${i.ID}" style="animation-delay:${delay}s">
       <div class="item-top">
         <div class="item-desc">${escapeHtml(i.Περιγραφή || '')}</div>
         ${i.Κατηγορία ? `<div class="item-cat">${escapeHtml(i.Κατηγορία)}</div>` : ''}
@@ -739,6 +765,7 @@ function itemCardHtml(i){
         ${i.Θέση ? `<span>θέση <b>${escapeHtml(i.Θέση)}</b></span>` : ''}
       </div>
       ${isNew ? '<div class="badge-new">ΠΡΟΣ ΕΛΕΓΧΟ</div>' : ''}
+      ${updated ? `<div class="item-updated">Ενημερώθηκε ${updated}${i.ΧρήστηςΕνημέρωσης ? ' · ' + escapeHtml(i.ΧρήστηςΕνημέρωσης) : ''}</div>` : ''}
     </div>
   `;
 }
@@ -958,7 +985,7 @@ function renderStatsBody(s){
   if (s.topViewed && s.topViewed.length) {
     html += '<div class="kpi-section-title">🔥 Πιο ψαγμένα υλικά (προβολές)</div>';
     html += s.topViewed.map(v => `
-      <div class="kpi-row">
+      <div class="kpi-row kpi-row-clickable" data-open-id="${escapeHtml(v.item.ID)}">
         <div class="kpi-row-main">
           <div class="kpi-row-title">${escapeHtml(v.item.Περιγραφή || '')}</div>
           <div class="kpi-row-sub">${escapeHtml(v.item.Κατηγορία || '')}${v.item.Θέση ? ' · θέση ' + escapeHtml(v.item.Θέση) : ''}</div>
@@ -971,7 +998,7 @@ function renderStatsBody(s){
   if (s.topSearches && s.topSearches.length) {
     html += '<div class="kpi-section-title">🔎 Πιο συχνοί όροι αναζήτησης</div>';
     html += s.topSearches.map(v => `
-      <div class="kpi-row">
+      <div class="kpi-row kpi-row-clickable" data-run-search="${escapeHtml(v.term)}">
         <div class="kpi-row-main"><div class="kpi-row-title">"${escapeHtml(v.term)}"</div></div>
         <div class="kpi-count">${v.count}×</div>
       </div>
@@ -993,6 +1020,24 @@ function renderStatsBody(s){
   }
 
   body.innerHTML = html;
+
+  body.querySelectorAll('[data-open-id]').forEach(el => {
+    el.onclick = () => {
+      const id = el.dataset.openId;
+      document.getElementById('statsOverlay').classList.remove('open');
+      openItemForm(id);
+    };
+  });
+  body.querySelectorAll('[data-run-search]').forEach(el => {
+    el.onclick = () => {
+      const term = el.dataset.runSearch;
+      document.getElementById('statsOverlay').classList.remove('open');
+      document.getElementById('searchInput').value = term;
+      document.getElementById('catFilter').value = '';
+      onlyNewFilter = false;
+      renderList();
+    };
+  });
 }
 
 /* =========== HELPERS =========== */
