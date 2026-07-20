@@ -377,13 +377,26 @@
 <div class="sheet-overlay" id="logOverlay">
   <div class="sheet">
     <h2>Πλήρες ιστορικό</h2>
-    <div class="sub">Τελευταίες 300 ενέργειες όλων των χρηστών</div>
+    <div class="sub">Τελευταίες 300 ενέργειες όλων των χρηστών (προβολές, αναζητήσεις, αλλαγές)</div>
     <div class="history-list" id="fullLogList"></div>
     <div class="sheet-actions">
       <button class="btn btn-ghost" id="closeLogBtn">Κλείσιμο</button>
     </div>
-    <div style="text-align:center; margin-top:14px;">
+    <div style="text-align:center; margin-top:14px; display:flex; flex-direction:column; gap:8px;">
+      <a href="#" id="openChangesLink" style="font-size:12.5px; color:var(--ink-soft); text-decoration:underline;">🔐 Ιστορικό αλλαγών (μόνο προσθήκες/επεξεργασίες/διαγραφές)</a>
       <a href="#" id="openRestoreLink" style="font-size:12.5px; color:var(--ink-soft); text-decoration:underline;">🗄️ Διαχείριση backup / Επαναφορά δεδομένων</a>
+    </div>
+  </div>
+</div>
+
+<!-- Changes-only log sheet (κωδικός) -->
+<div class="sheet-overlay" id="changesOverlay">
+  <div class="sheet">
+    <h2>🔐 Ιστορικό αλλαγών</h2>
+    <div class="sub">Μόνο πραγματικές επεμβάσεις (προσθήκη/επεξεργασία/διαγραφή/επαναφορά) — όχι απλές προβολές ή αναζητήσεις</div>
+    <div class="history-list" id="changesLogList"></div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="closeChangesBtn">Κλείσιμο</button>
     </div>
   </div>
 </div>
@@ -585,6 +598,15 @@ function bindEvents(){
   document.getElementById('cancelBtn').onclick = () => closeItemForm();
   document.getElementById('saveBtn').onclick = saveItem;
   document.getElementById('historyAllBtn').onclick = openFullLog;
+  document.getElementById('openChangesLink').onclick = (e) => {
+    e.preventDefault();
+    document.getElementById('logOverlay').classList.remove('open');
+    requirePin('🔒 Ιστορικό αλλαγών', 'Πληκτρολόγησε τον κωδικό για να δεις ποιος έκανε τι', openChangesLog);
+  };
+  document.getElementById('closeChangesBtn').onclick = () => document.getElementById('changesOverlay').classList.remove('open');
+  document.getElementById('changesOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'changesOverlay') document.getElementById('changesOverlay').classList.remove('open');
+  });
   document.getElementById('openRestoreLink').onclick = (e) => {
     e.preventDefault();
     document.getElementById('logOverlay').classList.remove('open');
@@ -630,7 +652,7 @@ function applyTheme(t){
 }
 
 /* =========== API =========== */
-const READ_ACTIONS = ['list', 'history', 'fullLog', 'view', 'search', 'stats', 'users', 'listBackups'];
+const READ_ACTIONS = ['list', 'history', 'fullLog', 'view', 'search', 'stats', 'users', 'listBackups', 'changesLog'];
 
 function apiCall(action, payload) {
   payload = payload || {};
@@ -938,6 +960,17 @@ function openFullLog(){
     renderHistory(document.getElementById('fullLogList'), res.history || []);
   }).catch(err => {
     document.getElementById('fullLogList').innerHTML = 'Σφάλμα: ' + escapeHtml(err.message);
+  });
+}
+
+function openChangesLog(){
+  const overlay = document.getElementById('changesOverlay');
+  overlay.classList.add('open');
+  document.getElementById('changesLogList').innerHTML = '<div class="loading"><div class="spinner"></div>Φόρτωση…</div>';
+  apiCall('changesLog').then(res => {
+    renderHistory(document.getElementById('changesLogList'), res.history || []);
+  }).catch(err => {
+    document.getElementById('changesLogList').innerHTML = 'Σφάλμα: ' + escapeHtml(err.message);
   });
 }
 
