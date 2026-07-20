@@ -717,10 +717,11 @@ function renderList(){
   if (cat) filtered = filtered.filter(i => i.Κατηγορία === cat);
   if (onlyNewFilter) filtered = filtered.filter(i => String(i.Σημειώσεις || '').includes('ΝΕΟ'));
   if (q) {
+    const words = q.split(/\s+/).filter(Boolean);
     filtered = filtered.filter(i => {
       const hay = [i.Περιγραφή, i.ΠαλιόςΚωδικός, i.ΝέοςΚωδικός, i.Θέση, i.Θέση2, i.Κατηγορία, i.Σημειώσεις]
         .join(' ').toLowerCase();
-      return hay.includes(q);
+      return words.every(w => hay.includes(w));
     });
     clearTimeout(searchLogTimer);
     searchLogTimer = setTimeout(() => {
